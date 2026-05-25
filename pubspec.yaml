@@ -21,6 +21,7 @@ dependencies:
 
   # ─── Socket.io — Tiempo real (reemplaza Firestore Streams) ──────────────────
   socket_io_client: ^2.0.3+1
+  web_socket_channel: ^3.0.1
 
   # ─── Firebase HÍBRIDO — solo Auth + Messaging (SIN Firestore ni Storage) ────
   firebase_core: ^4.9.0
