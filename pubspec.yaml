@@ -1,0 +1,54 @@
+name: curbradar_frontend
+description: "CurbRadar — Frontend Flutter. Arquitectura híbrida: Firebase Auth/FCM + REST backend + Socket.io"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ─── Mapas y Ubicación ──────────────────────────────────────────────────────
+  google_maps_flutter: ^2.10.0
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  flutter_polyline_points: ^3.1.0
+
+  # ─── HTTP / API REST ──────────────────────────────────────────────────────────
+  dio: ^5.6.0
+
+  # ─── Socket.io — Tiempo real (reemplaza Firestore Streams) ──────────────────
+  socket_io_client: ^2.0.3+1
+
+  # ─── Firebase HÍBRIDO — solo Auth + Messaging (SIN Firestore ni Storage) ────
+  firebase_core: ^4.9.0
+  firebase_auth: ^6.5.1          # Login + ID Token para el backend
+  google_sign_in: ^6.2.2
+  firebase_messaging: ^16.2.2    # Recepción de FCM push notifications
+  flutter_local_notifications: ^18.0.1
+
+  # ─── UI / UX ─────────────────────────────────────────────────────────────────
+  shimmer: ^3.0.0
+  confetti: ^0.8.0
+  share_plus: ^12.0.2
+  url_launcher: ^6.3.1
+
+  # ─── Utilidades ───────────────────────────────────────────────────────────────
+  shared_preferences: ^2.3.2
+  image_picker: ^1.1.2           # Cámara → sube via UploadService al backend
+  connectivity_plus: ^6.0.3
+  permission_handler: ^12.0.1
+  uuid: ^4.5.1
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
