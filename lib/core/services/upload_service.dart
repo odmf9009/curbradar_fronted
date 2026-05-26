@@ -1,74 +1,68 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import 'api_service.dart';
 import '../config/api_config.dart';
 
-/// Servicio de subida de imágenes.
-///
-/// ⭐ ARQUITECTURA HÍBRIDA:
-///   - Antes: Flutter subía imágenes DIRECTAMENTE a Firebase Storage
-///     (requería credenciales en el cliente)
-///   - Ahora: Flutter envía la imagen al BACKEND → el backend la sube a
-///     Firebase Storage con el Admin SDK → devuelve la URL pública
-///
-/// Firebase Storage sigue siendo el storage (gratuito y confiable),
-/// pero el cliente NUNCA toca credenciales de Storage directamente.
 class UploadService {
   final ApiService _api = ApiService();
 
-  /// Sube una imagen de objeto (foto de algo en la calle).
-  /// [imageFile] — Archivo de imagen tomado con image_picker
-  /// Retorna la URL pública de Firebase Storage.
   Future<String> uploadObjectImage(File imageFile) async {
     return _upload(imageFile, folder: 'objects');
   }
 
-  /// Sube una imagen de perfil de usuario.
   Future<String> uploadProfileImage(File imageFile) async {
     return _upload(imageFile, folder: 'profiles');
   }
 
   Future<String> _upload(File imageFile, {required String folder}) async {
     try {
-      final fileName = imageFile.path.split('/').last;
+      final compressed = await _compress(imageFile);
+      final fileToUpload = compressed ?? imageFile;
+
+      final fileName = fileToUpload.path.split('/').last;
       final mimeType = _getMimeType(fileName);
 
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(
-          imageFile.path,
+          fileToUpload.path,
           filename: fileName,
           contentType: DioMediaType.parse(mimeType),
         ),
         'folder': folder,
       });
 
-      // Usar Dio directamente con los headers del ApiService
-      // pero como FormData (multipart)
       final dio = Dio(
         BaseOptions(
           baseUrl: ApiConfig.baseUrl,
           headers: {'Accept': 'application/json'},
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 30),
         ),
       );
 
-      // Inyectar el token de Firebase manualmente
-      final token = await _getFirebaseToken();
-      if (token != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final token = await user.getIdToken(false);
         dio.options.headers['Authorization'] = 'Bearer $token';
       }
 
       final response = await dio.post(
         '${ApiConfig.upload}/image',
         data: formData,
-        options: Options(
-          sendTimeout: const Duration(seconds: 60),
-          receiveTimeout: const Duration(seconds: 30),
-        ),
       );
 
       final url = response.data['url'] as String?;
       if (url == null || url.isEmpty) {
         throw Exception('El servidor no devolvió una URL válida');
+      }
+
+      // Limpiar archivo temporal comprimido
+      if (compressed != null) {
+        try { await compressed.delete(); } catch (_) {}
       }
 
       return url;
@@ -77,25 +71,23 @@ class UploadService {
     }
   }
 
-  Future<String?> _getFirebaseToken() async {
+  // Comprime a JPEG con calidad 75 y máximo 1200px de ancho.
+  // Retorna null si la compresión falla (se usa el original).
+  Future<File?> _compress(File file) async {
     try {
-      // Import inline para no crear dependencia circular
-      final auth = await _getFirebaseAuth();
-      return await auth?.getIdToken();
-    } catch (_) {
-      return null;
-    }
-  }
+      final dir = await getTemporaryDirectory();
+      final targetPath = '${dir.path}/upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-  // Obtiene la instancia de FirebaseAuth dinámicamente
-  Future<dynamic> _getFirebaseAuth() async {
-    try {
-      // ignore: avoid_dynamic_calls
-      final firebaseAuth = await Future.value(
-        // FirebaseAuth.instance.currentUser — accedemos via reflexión para evitar imports circulares
-        null, // Reemplazar con FirebaseAuth.instance.currentUser en implementación real
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 75,
+        minWidth: 1200,
+        minHeight: 1200,
+        format: CompressFormat.jpeg,
       );
-      return firebaseAuth;
+
+      return result != null ? File(result.path) : null;
     } catch (_) {
       return null;
     }
