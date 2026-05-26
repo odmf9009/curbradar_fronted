@@ -15,7 +15,7 @@ class ApiConfig {
 
   // Desarrollo: IP del VPS directa o localhost
   // Mientras configuras Nginx: http://<IP_DEL_VPS>:3000/api
-  static const String _devBaseUrl = 'http://192.168.1.134:3001/api';
+  static const String _devBaseUrl = 'https://api.curbradar.tech/api';
 
   static String get baseUrl =>
       _environment == 'production' ? _prodBaseUrl : _devBaseUrl;
@@ -26,7 +26,7 @@ class ApiConfig {
   static String get wsUrl =>
       _environment == 'production'
           ? 'wss://api.curbradar.tech'
-          : 'ws://192.168.1.134:3001';
+          : 'wss://api.curbradar.tech';
 
   // ── Timeouts ──────────────────────────────────────────────────────────────
   static const Duration connectTimeout = Duration(seconds: 10);
