@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.curb_radar"
+    namespace = "com.venturesflstudio.curb_radar"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,11 +22,7 @@ android {
     }
 
     defaultConfig {
-        // applicationId debe coincidir con el package_name registrado en Firebase Console.
-        // El proyecto Firebase tiene registrado "com.example.curb_radar".
-        // Cuando vayas a publicar en Play Store, cambia a "tech.curbradar.app" y
-        // registra ese ID en Firebase Console (Configuración → Añadir app Android).
-        applicationId = "com.example.curb_radar"
+        applicationId = "com.venturesflstudio.curb_radar"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

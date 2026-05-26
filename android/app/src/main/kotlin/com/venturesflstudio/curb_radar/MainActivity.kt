@@ -1,4 +1,4 @@
-package com.example.curb_radar
+package com.venturesflstudio.curb_radar
 
 import io.flutter.embedding.android.FlutterActivity
 
