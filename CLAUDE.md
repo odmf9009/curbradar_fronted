@@ -814,3 +814,37 @@ Obtenerlos desde: [Firebase Console](https://console.firebase.google.com/project
 ---
 
 *Actualizado: Mayo 2026 — curbradar_frontend v1.0.0*
+
+---
+
+## 16. Changelog
+
+### 2026-05-26 — Setup inicial producción + App Store
+
+**Android:**
+- `android/key.properties` creado (excluido de git) con keystore en `~/curbradar_release.jks`
+- `android/app/build.gradle.kts` — signing config release con keystore
+- AAB v1.0.0 (build 1) generado en `build/app/outputs/bundle/release/app-release.aab` (59.9MB)
+- Subido a Google Play Console → track de prueba interna
+
+**iOS:**
+- `ios/Podfile` — deployment target subido a 15.0 (requerido por firebase_auth)
+- `ios/Runner.xcodeproj/project.pbxproj` — bundle ID cambiado a `com.venturesflstudio.curbRadar`, `DEVELOPMENT_TEAM = P39356P7FN`, `IPHONEOS_DEPLOYMENT_TARGET = 15.0`
+- `ios/Runner.xcodeproj/project.pbxproj` — `TARGETED_DEVICE_FAMILY = "1"` (iPhone-only, elimina necesidad de capturas iPad)
+- `ios/ExportOptions.plist` — método `app-store`, teamID `P39356P7FN`
+- `GoogleService-Info.plist` — debe estar añadido al target Runner en Xcode (no solo en el directorio)
+- Perfil de aprovisionamiento: `CurbRadar AppStore` (Distribution, App Store Connect) — descargar de developer.apple.com si se borra el Keychain
+- IPA v1.0.0 (build 2) subido a App Store Connect via Xcode Organizer → Distribute App
+
+**Paquetes añadidos (pubspec.yaml):**
+- `flutter_image_compress: ^2.3.0` — compresión antes de subir (75% quality, max 1200px)
+- `path_provider: ^2.1.4` — directorio temporal para imagen comprimida
+
+**Bug fixes:**
+- `upload_service.dart` — token Firebase siempre era null; corregido con `user.getIdToken(false)`
+
+**App Store Connect (app ID: 6773447435):**
+- Bundle ID: `com.venturesflstudio.curbRadar`
+- Categoría: Lifestyle | Edad: 4+ | Precio: Gratuita
+- Privacy policy: `https://curbradar.tech/privacy.html`
+- App Privacy: Ubicación precisa/aproximada, Email, Fotos, ID dispositivo
