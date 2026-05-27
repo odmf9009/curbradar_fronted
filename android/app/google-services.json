@@ -1,0 +1,104 @@
+{
+  "project_info": {
+    "project_number": "196094245485",
+    "project_id": "curbradar-6d8f0",
+    "storage_bucket": "curbradar-6d8f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196094245485:android:f38919711d042955e01d64",
+        "android_client_info": {
+          "package_name": "com.example.curb_radar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "196094245485-r511vqjaq6ffg85mn2ou0df4c7i1po93.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.curb_radar",
+            "certificate_hash": "a4154153aaf2e4a1356e539b1ad0e5f38292c082"
+          }
+        },
+        {
+          "client_id": "196094245485-hvtoo8jddmrntad2eo24rbctlhn9dce6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0pU9PsvH16EYr6ChUmFrjLIoeA6Rgk_I"
+        },
+        {
+          "current_key": "AIzaSyAFLY2Ib1ye2Qq5yXR_LYRBpGZquRYiV4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "196094245485-hvtoo8jddmrntad2eo24rbctlhn9dce6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "196094245485-9bfo3jhol9sn3d6777ik7dv1e4d4blgm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.venturesflstudio.curbRadar"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196094245485:android:3966399b820dd9bee01d64",
+        "android_client_info": {
+          "package_name": "com.venturesflstudio.curb_radar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "196094245485-u7k8fpb9acvl419efv8utp8jovclmvik.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.venturesflstudio.curb_radar",
+            "certificate_hash": "5f8714fc2a93819f2f4cbff526bb496a4cb96b06"
+          }
+        },
+        {
+          "client_id": "196094245485-hvtoo8jddmrntad2eo24rbctlhn9dce6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0pU9PsvH16EYr6ChUmFrjLIoeA6Rgk_I"
+        },
+        {
+          "current_key": "AIzaSyAFLY2Ib1ye2Qq5yXR_LYRBpGZquRYiV4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "196094245485-hvtoo8jddmrntad2eo24rbctlhn9dce6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "196094245485-9bfo3jhol9sn3d6777ik7dv1e4d4blgm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.venturesflstudio.curbRadar"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
