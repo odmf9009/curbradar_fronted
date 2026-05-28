@@ -115,6 +115,13 @@ class ApiService {
     if (e.type == DioExceptionType.connectionError) {
       return 'Sin conexión al servidor. Verifica que el backend esté activo.';
     }
+    // Incluye el body real para ayudar a diagnosticar (ej: HTML de Nginx)
+    final status = e.response?.statusCode;
+    final body = e.response?.data?.toString() ?? '';
+    final bodySnippet = body.length > 200 ? body.substring(0, 200) : body;
+    if (status != null && bodySnippet.isNotEmpty) {
+      return 'HTTP $status — $bodySnippet';
+    }
     return e.message ?? 'Error desconocido';
   }
 }
