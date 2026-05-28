@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'api_service.dart';
@@ -35,22 +33,7 @@ class UploadService {
         'folder': folder,
       });
 
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiConfig.baseUrl,
-          headers: {'Accept': 'application/json'},
-          sendTimeout: const Duration(seconds: 60),
-          receiveTimeout: const Duration(seconds: 30),
-        ),
-      );
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final token = await user.getIdToken(false);
-        dio.options.headers['Authorization'] = 'Bearer $token';
-      }
-
-      final response = await dio.post(
+      final response = await _api.post(
         '${ApiConfig.upload}/image',
         data: formData,
       );
@@ -60,7 +43,6 @@ class UploadService {
         throw Exception('El servidor no devolvió una URL válida');
       }
 
-      // Limpiar archivo temporal comprimido
       if (compressed != null) {
         try { await compressed.delete(); } catch (_) {}
       }

@@ -34,6 +34,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool _hasCheckedAlias = false;
   bool _isOnline = false;
   Timer? _locationSyncTimer;
+  // Incrementar este valor fuerza un rebuild del ProfileScreen
+  int _profileKey = 0;
 
   @override
   void initState() {
@@ -374,6 +376,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   void _onTabTapped(int index) {
     setState(() {
+      // Si el usuario va al perfil, forzar reload para mostrar XP y logros actualizados
+      if (index == 3 && _currentIndex != 3) _profileKey++;
       _currentIndex = index;
     });
   }
@@ -388,7 +392,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       const AlertsScreen(),
       const RankingScreen(),
-      const ProfileScreen(),
+      ProfileScreen(key: ValueKey(_profileKey)),
     ];
 
     return Scaffold(
