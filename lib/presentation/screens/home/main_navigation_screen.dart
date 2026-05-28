@@ -398,7 +398,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'main_fab',
-        onPressed: () => Navigator.pushNamed(context, AppRoutes.publish),
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, AppRoutes.publish);
+          // Si regresamos de publicar, forzamos un refresco si estamos en el mapa
+          if (_currentIndex == 0) {
+            // Un pequeño truco para reconstruir el HomeMapScreen y que cargue datos
+            setState(() {
+              _currentIndex = 1; // Cambiamos rápido
+            });
+            Future.delayed(const Duration(milliseconds: 50), () {
+              if (mounted) setState(() => _currentIndex = 0); // Volvemos al mapa
+            });
+          }
+        },
         backgroundColor: const Color(0xFFFF8A00),
         shape: const CircleBorder(),
         elevation: 4,

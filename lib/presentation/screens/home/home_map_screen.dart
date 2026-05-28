@@ -50,6 +50,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   final ScrollController _listScrollController = ScrollController();
 
   StreamSubscription<Position>? _positionSubscription;
+  StreamSubscription<void>? _objectCreatedSubscription;
   Position? _currentPosition;
   LatLng? _manualLocation;
   bool _isFollowingUser = true;
@@ -92,11 +93,36 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     _initLocation();
     _listenToSocketEvents();
     _loadActiveHunters();
+
+    // Escuchar cuando el propio usuario realiza acciones (publicar, reclamar, confirmar)
+    _objectCreatedSubscription = ObjectsService.onObjectAction.listen((_) async {
+      print('[HomeMap] Acción local detectada. Refrescando datos...');
+      
+      // Si el usuario abandona o recoge el objeto, ocultamos la tarjeta de ETA automáticamente
+      final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      bool stillHasActiveClaim = _allObjects.any((o) => 
+          o.id == _navigatingTargetId && 
+          o.status == CurbObjectStatus.onMyWay && 
+          o.claimedByUserId == uid);
+      
+      if (!stillHasActiveClaim) {
+        setState(() {
+          _showEtaCard = false;
+          _navigatingTargetId = null;
+          _polylines.clear();
+        });
+      }
+
+      // Esperamos un momento para que el backend procese la acción
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) _loadObjects();
+    });
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _objectCreatedSubscription?.cancel();
     _debounceTimer?.cancel();
     _objectsRefreshTimer?.cancel();
     _listScrollController.dispose();
@@ -112,6 +138,14 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   Future<void> _loadObjects() async {
     if (_currentPosition == null) return;
     try {
+      if (mounted) setState(() => _isInitialLoading = true);
+
+      // Si el filtro es 'available', no enviamos status al servidor para que nos devuelva 
+      // tanto 'available' como 'onMyWay', y luego filtramos localmente.
+      final String? statusFilter = (_currentFilters.status == 'available' || _currentFilters.status == 'Todos') 
+          ? null 
+          : _currentFilters.status;
+
       final objects = await _objectsService.getNearbyObjects(
         lat: _currentPosition!.latitude,
         lng: _currentPosition!.longitude,
@@ -119,8 +153,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         category: _currentFilters.category != 'Todos'
             ? _currentFilters.category
             : null,
-        status:
-            _currentFilters.status != 'Todos' ? _currentFilters.status : null,
+        status: statusFilter,
         timeRange: _currentFilters.timeRange != 'all'
             ? _currentFilters.timeRange
             : null,
@@ -163,8 +196,15 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     _socket.on('object:new', (data) {
       if (!mounted) return;
       try {
-        final obj = CurbObject.fromJson(Map<String, dynamic>.from(data));
+        // El payload del socket viene envuelto en una llave 'object'
+        final Map<String, dynamic> payload = Map<String, dynamic>.from(data);
+        final objectData = payload.containsKey('object') ? payload['object'] : payload;
+        
+        final obj = CurbObject.fromJson(Map<String, dynamic>.from(objectData));
+        
         setState(() {
+          // Evitar duplicados si ya existe
+          _allObjects.removeWhere((o) => o.id == obj.id);
           _allObjects.add(obj);
         });
         _filterAndRefreshMap();
@@ -177,8 +217,10 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     _socket.on('object:updated', (data) {
       if (!mounted) return;
       try {
-        final updatedObj =
-            CurbObject.fromJson(Map<String, dynamic>.from(data));
+        final Map<String, dynamic> payload = Map<String, dynamic>.from(data);
+        final objectData = payload.containsKey('object') ? payload['object'] : payload;
+        
+        final updatedObj = CurbObject.fromJson(Map<String, dynamic>.from(objectData));
         final idx = _allObjects.indexWhere((o) => o.id == updatedObj.id);
 
         // Auto-hide ETA card if no longer claimed by me
@@ -275,7 +317,13 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     final String query = _currentFilters.searchQuery.toLowerCase();
     final now = DateTime.now();
 
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final filtered = _allObjects.where((obj) {
+      // 1. SIEMPRE mostrar mi propio reclamo activo, ignorando filtros de distancia/estado
+      if (obj.status == CurbObjectStatus.onMyWay && obj.claimedByUserId == currentUid) {
+        return true;
+      }
+
       double distanceInMeters = Geolocator.distanceBetween(
           refLat, refLng, obj.latitude, obj.longitude);
 
@@ -285,6 +333,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       if (_currentFilters.category != 'Todos' &&
           obj.category != _currentFilters.category) return false;
 
+      // Mostrar disponibles, o si el filtro es 'disponible' mostrar también los 'en camino' 
+      // (aunque los de otros se filtrarán en la UI o se verán con icono azul)
       bool matchesStatus = _currentFilters.status == 'Todos' ||
           obj.status.name == _currentFilters.status ||
           (_currentFilters.status == 'available' &&
@@ -306,9 +356,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
 
       return true;
     }).toList();
-
-    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     filtered.sort((a, b) {
+      // 1. Mis reclamos activos primero
       bool aIsMyClaim =
           a.status == CurbObjectStatus.onMyWay && a.claimedByUserId == currentUid;
       bool bIsMyClaim =
@@ -316,7 +365,9 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
 
       if (aIsMyClaim && !bIsMyClaim) return -1;
       if (!aIsMyClaim && bIsMyClaim) return 1;
-      return 0;
+      
+      // 2. Lo más nuevo después
+      return b.createdAt.compareTo(a.createdAt);
     });
 
     final Set<Marker> newMarkers = {};

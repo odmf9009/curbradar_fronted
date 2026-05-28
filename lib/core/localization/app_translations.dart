@@ -82,6 +82,7 @@ class AppTranslations {
       'no_hay_ranking': 'No hay datos de ranking aún',
       'objetos': 'Objetos',
       'confirmaciones': 'Confirmaciones',
+      'error_loading_object': 'Error al cargar el objeto',
     },
     'en': {
       'app_title': 'CurbRadar',
@@ -165,6 +166,7 @@ class AppTranslations {
       'no_hay_ranking': 'No ranking data yet',
       'objetos': 'Items',
       'confirmaciones': 'Confirmations',
+      'error_loading_object': 'Error loading item',
     }
   };
 }

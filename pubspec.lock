@@ -77,10 +77,10 @@ packages:
     dependency: "direct main"
     description:
       name: connectivity_plus
-      sha256: b5e72753cf63becce2c61fd04dfe0f1c430cc5278b53a1342dc5ad839eab29ec
+      sha256: "62ffa266d9a23b79fb3fcbc206afc00bb979417ba57b1324c546b5aab95ba057"
       url: "https://pub.dev"
     source: hosted
-    version: "6.1.5"
+    version: "7.1.1"
   connectivity_plus_platform_interface:
     dependency: transitive
     description:
@@ -516,18 +516,18 @@ packages:
     dependency: transitive
     description:
       name: google_maps_flutter_android
-      sha256: f1eb5ffa34ba41f8591e53ce439f78af179a506e8386a1297d0ecd202e05c734
+      sha256: "7b1244cf25257f88ce8ba59e7060c87e8a12c42e60cb085bafbf3430c5a0ab05"
       url: "https://pub.dev"
     source: hosted
-    version: "2.19.8"
+    version: "2.19.9"
   google_maps_flutter_ios:
     dependency: transitive
     description:
       name: google_maps_flutter_ios
-      sha256: "5ed8d8d0f93dfa7f5039c409c500948e98e59068f8f6fcf9105bfd07e3709d7f"
+      sha256: fbb8aba2b7665ad87391ebd4266a03a2a11267c175ac37f7145f34da8253ba90
       url: "https://pub.dev"
     source: hosted
-    version: "2.18.1"
+    version: "2.18.2"
   google_maps_flutter_platform_interface:
     dependency: transitive
     description:
@@ -540,10 +540,10 @@ packages:
     dependency: transitive
     description:
       name: google_maps_flutter_web
-      sha256: "9b068070bf18b5ec6a7d8ac512c7d557377dbe267658d264d2095b7ee4f1f6c5"
+      sha256: "100134d326b8647b234e6b594aa52e73f462cd4b292f9e3dfdf27295e67d2e47"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.2+1"
+    version: "0.6.2+2"
   google_sign_in:
     dependency: "direct main"
     description:
@@ -609,7 +609,7 @@ packages:
     source: hosted
     version: "0.15.6"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -704,14 +704,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.7"
   leak_tracker:
     dependency: transitive
     description:
@@ -1065,18 +1057,18 @@ packages:
     dependency: "direct main"
     description:
       name: socket_io_client
-      sha256: ede469f3e4c55e8528b4e023bdedbc20832e8811ab9b61679d1ba3ed5f01f23b
+      sha256: ef6c989e5eee8d04baf18482ec3d7699b91bc41e279794a99d8e3bef897b074a
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.3+1"
+    version: "3.1.4"
   socket_io_common:
     dependency: transitive
     description:
       name: socket_io_common
-      sha256: "2ab92f8ff3ebbd4b353bf4a98bee45cc157e3255464b2f90f66e09c4472047eb"
+      sha256: "162fbaecbf4bf9a9372a62a341b3550b51dcef2f02f3e5830a297fd48203d45b"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.3"
+    version: "3.1.1"
   source_span:
     dependency: transitive
     description:

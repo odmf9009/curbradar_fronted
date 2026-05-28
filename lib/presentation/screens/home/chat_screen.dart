@@ -22,6 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final String _currentUserId =
       FirebaseAuth.instance.currentUser?.uid ?? '';
   String _currentUserName = 'Usuario';
+  String? _activeObjectId;
 
   List<ChatMessage> _messages = [];
   bool _isLoading = true;
@@ -38,10 +39,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    final object =
-        ModalRoute.of(context)?.settings.arguments as CurbObject?;
-    if (object != null) {
-      _socket.leaveObject(object.id);
+    if (_activeObjectId != null) {
+      _socket.leaveObject(_activeObjectId!);
     }
     _socket.off('newMessage');
     super.dispose();
@@ -51,6 +50,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final object =
         ModalRoute.of(context)?.settings.arguments as CurbObject?;
     if (object == null) return;
+    
+    _activeObjectId = object.id;
 
     // Load current user name
     try {

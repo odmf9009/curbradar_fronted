@@ -54,8 +54,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
   List<CommentModel> _comments = [];
   bool _commentsLoaded = false;
 
-  final String _currentUserId =
-      FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
@@ -88,9 +87,32 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
   }
 
   Future<void> _initScreen() async {
-    final object =
-        ModalRoute.of(context)?.settings.arguments as CurbObject?;
-    if (object == null) return;
+    final args = ModalRoute.of(context)?.settings.arguments;
+
+    CurbObject? object;
+
+    if (args is CurbObject) {
+      object = args;
+    } else if (args is String) {
+      // Si recibimos un ID en lugar del objeto completo, lo cargamos del backend
+      setState(() => _isLoading = true);
+      try {
+        object = await _objectsService.getObjectById(args);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('error_loading_object'))),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+
+    if (object == null) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
 
     setState(() => _liveObject = object);
 
@@ -105,13 +127,18 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
   void _onObjectUpdated(dynamic data) {
     if (!mounted) return;
     try {
-      final Map<String, dynamic> json =
-          Map<String, dynamic>.from(data as Map);
-      final updated = CurbObject.fromJson(json);
+      final Map<String, dynamic> payload = Map<String, dynamic>.from(data as Map);
+      final objectData = payload.containsKey('object') ? payload['object'] : payload;
+      
+      final updated = CurbObject.fromJson(Map<String, dynamic>.from(objectData));
+      
       if (updated.id == _liveObject?.id) {
+        print('[Detail] Objeto actualizado via Socket: ${updated.status}');
         setState(() => _liveObject = updated);
       }
-    } catch (_) {}
+    } catch (e) {
+      print('[Detail] Error parsing object:updated: $e');
+    }
   }
 
   Future<void> _checkInitialState() async {
@@ -476,22 +503,31 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
       final imageUrl =
           await _uploadService.uploadObjectImage(File(pickedFile.path));
 
-      // PATCH image URL to backend — backend awards points if first time
-      final response = await _api.patch(
-        '${ApiConfig.objects}/$objectId/image',
-        data: {'imageUrl': imageUrl},
-      );
+      print('[Detail] Imagen subida. Actualizando objeto: $objectId');
 
-      final bool isFirstTime = response.data['firstTime'] == true;
+      // Usamos el servicio oficial para que dispare el refresco global
+      final bool isFirstTime = await _objectsService.updateImage(objectId, imageUrl);
+
       if (isFirstTime && mounted) {
         RewardHelper.showReward(context, 20);
+      }
+
+      // Actualizamos el objeto local para que el usuario vea la foto sin salir de la pantalla
+      if (mounted && _liveObject != null) {
+        final updatedImages = List<String>.from(_liveObject!.imageUrls);
+        updatedImages.insert(0, imageUrl);
+        setState(() {
+          _liveObject = _liveObject!.copyWith(); // Forzamos reconstrucción
+          // Nota: El socket o el refresco del mapa traerán la versión final del servidor
+        });
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('¡Foto actualizada con éxito!')),
         );
-        Navigator.pop(context);
+        // Volvemos al mapa enviando 'true' para que sepa que hubo cambios importantes
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -977,12 +1013,14 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                             _currentUserId
                                     ? tr('abandonar')
                                     : tr('on_my_way'),
-                                liveObject.status ==
-                                            CurbObjectStatus.onMyWay &&
-                                        liveObject.claimedByUserId ==
-                                            _currentUserId
-                                    ? Colors.red.shade400
-                                    : const Color(0xFF1976D2),
+                                isOwner
+                                    ? Colors.grey
+                                    : (liveObject.status ==
+                                                CurbObjectStatus.onMyWay &&
+                                            liveObject.claimedByUserId ==
+                                                _currentUserId
+                                        ? Colors.red.shade400
+                                        : const Color(0xFF1976D2)),
                                 Colors.white,
                                 subtitle: liveObject.status ==
                                             CurbObjectStatus.onMyWay &&
@@ -990,19 +1028,21 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                             _currentUserId
                                     ? liveObject.remainingClaimTimeText
                                     : '',
-                                onPressed: liveObject.status ==
-                                            CurbObjectStatus.onMyWay &&
-                                        liveObject.claimedByUserId !=
-                                            _currentUserId
-                                    ? _showBlockedMessage
+                                onPressed: isOwner
+                                    ? null // El autor no puede reclamar su propio objeto
                                     : (liveObject.status ==
-                                            CurbObjectStatus.available
-                                        ? () => _showVoyEnCaminoReminder(
-                                            liveObject.id)
-                                        : () => _updateStatus(
-                                            liveObject.id,
-                                            CurbObjectStatus.available,
-                                            isConfirming: false)),
+                                                CurbObjectStatus.onMyWay &&
+                                            liveObject.claimedByUserId !=
+                                                _currentUserId
+                                        ? _showBlockedMessage
+                                        : (liveObject.status ==
+                                                CurbObjectStatus.available
+                                            ? () => _showVoyEnCaminoReminder(
+                                                liveObject.id)
+                                            : () => _updateStatus(
+                                                liveObject.id,
+                                                CurbObjectStatus.available,
+                                                isConfirming: false))),
                               ),
                             ),
                           ],
@@ -1606,13 +1646,15 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
         if (mounted) {
           RewardHelper.showReward(context, 10);
         }
+        
+        // Volvemos al mapa indicando que hubo cambios
+        if (mounted) Navigator.pop(context, true);
       } else {
         // Status change: onMyWay / available (abandon) / pickedUp
         final statusStr = status.name; // 'available', 'onMyWay', 'pickedUp'
         await _objectsService.updateStatus(id, statusStr);
+        if (mounted) Navigator.pop(context, true);
       }
-
-      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

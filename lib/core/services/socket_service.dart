@@ -1,4 +1,4 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../config/api_config.dart';
 
@@ -7,70 +7,92 @@ import '../config/api_config.dart';
 /// ⭐ ARQUITECTURA HÍBRIDA:
 ///   - Antes: StreamBuilder con cloud_firestore → escucha cambios en BD
 ///   - Ahora: Socket.io → el backend emite cambios cuando ocurren
-///
-/// Eventos que el servidor emite (escuchar con [on]):
-///   "object:new"       → { object }         nuevo objeto en el mapa
-///   "object:updated"   → { objectId, ...}   cambio de estado
-///   "object:deleted"   → { objectId }       objeto eliminado/recogido
-///   "hunter:location"  → { firebaseUid, lat, lng }
-///   "newMessage"       → { message }        mensaje de chat
-///
-/// Eventos que enviamos al servidor:
-///   "joinMap"          → entrar a sala del mapa
-///   "leaveMap"
-///   "joinObject"       → entrar al chat/detalle de un objeto
-///   "leaveObject"
-///   "joinHunters"      → activar visibilidad de cazadores
-///   "updateLocation"   → { lat, lng, firebaseUid }
 class SocketService {
   static final SocketService _instance = SocketService._internal();
   factory SocketService() => _instance;
   SocketService._internal();
 
-  IO.Socket? _socket;
+  io.Socket? _socket;
   bool _isConnected = false;
+  bool _domainWorked = false; // Flag para saber si el dominio ya funcionó
 
   bool get isConnected => _isConnected;
 
   /// Conectar al backend con el token de Firebase para autenticar el socket.
   Future<void> connect() async {
-    if (_isConnected) return;
+    // Si ya existe un socket y está conectado, no hacemos nada
+    if (_socket != null && _socket!.connected) {
+      print('[Socket] ℹ️ Ya conectado.');
+      return;
+    }
+
+    // Si el dominio ya funcionó antes, intentamos reconectar el socket actual
+    if (_socket != null && _domainWorked) {
+      print('[Socket] 🔄 Intentando recuperar conexión con dominio...');
+      _socket!.connect();
+      return;
+    }
+
+    print('[Socket] 📡 Configurando conexión a: ${ApiConfig.wsUrl}');
 
     String? token;
     try {
       token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    } catch (_) {}
+    } catch (e) {
+      print('[Socket] Error obteniendo token: $e');
+    }
 
-    _socket = IO.io(
+    // Inicialización del socket con opciones de alta estabilidad
+    _socket = io.io(
       ApiConfig.wsUrl,
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
-          .disableAutoConnect()
           .setExtraHeaders({'Authorization': 'Bearer ${token ?? ''}'})
+          .enableAutoConnect()
           .enableReconnection()
-          .setReconnectionAttempts(5)
-          .setReconnectionDelay(2000)
+          .setReconnectionAttempts(20)
+          .setReconnectionDelay(5000) 
+          .setReconnectionDelayMax(10000)
           .build(),
     );
 
+    // Definición de listeners globales
     _socket!.onConnect((_) {
       _isConnected = true;
-      print('[Socket] ✅ Conectado al servidor');
+      _domainWorked = true; // El dominio funciona correctamente
+      print('[Socket] ✅ Conectado con éxito. ID: ${_socket!.id}');
     });
 
-    _socket!.onDisconnect((_) {
+    _socket!.onDisconnect((data) {
       _isConnected = false;
-      print('[Socket] ❌ Desconectado');
+      print('[Socket] ❌ Desconectado: $data');
+    });
+
+    _socket!.onConnectError((err) {
+      _isConnected = false;
+      print('[Socket] ⚠️ Error de conexión: $err');
+      
+      // Solo usamos la IP de respaldo si el dominio NUNCA ha funcionado en esta sesión
+      if (err.toString().contains('errno = 7') && !_domainWorked) {
+        print('[Socket] 🆘 DNS falló y el dominio nunca funcionó. Usando IP de respaldo...');
+        _reconnectWithIP(token);
+      }
     });
 
     _socket!.onError((err) {
-      print('[Socket] Error: $err');
+      print('[Socket] 🔥 Error general: $err');
     });
+
+    _socket!.onReconnect((_) => print('[Socket] 🔄 Reconectado'));
+    _socket!.onReconnectAttempt((_) => print('[Socket] ⏳ Intentando reconexión...'));
+    _socket!.onReconnectFailed((_) => print('[Socket] 💀 Falló la reconexión'));
 
     _socket!.connect();
   }
 
+  /// Desconectar y limpiar el socket
   void disconnect() {
+    print('[Socket] Cerrando conexión y limpiando...');
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
@@ -79,22 +101,41 @@ class SocketService {
 
   // ── Salas ────────────────────────────────────────────────────────────────
 
-  /// Entrar a la sala del mapa para recibir object:new / object:updated / object:deleted
-  void joinMap() => _socket?.emit('joinMap');
-  void leaveMap() => _socket?.emit('leaveMap');
+  void joinMap() {
+    if (_socket == null || !_socket!.connected) return;
+    print('[Socket] Uniéndose a sala: map');
+    _socket!.emit('joinMap');
+  }
 
-  /// Entrar a la sala de un objeto (chat + detalle en tiempo real)
-  void joinObject(String objectId) => _socket?.emit('joinObject', objectId);
-  void leaveObject(String objectId) => _socket?.emit('leaveObject', objectId);
+  void leaveMap() {
+    if (_socket == null) return;
+    print('[Socket] Saliendo de sala: map');
+    _socket!.emit('leaveMap');
+  }
 
-  /// Activar modo cazador — ver otros cazadores en el mapa
-  void joinHunters() => _socket?.emit('joinHunters');
+  void joinObject(String objectId) {
+    if (_socket == null || !_socket!.connected) return;
+    print('[Socket] Uniéndose a sala: object_$objectId');
+    _socket!.emit('joinObject', objectId);
+  }
 
-  /// Enviar mi ubicación a otros cazadores
+  void leaveObject(String objectId) {
+    if (_socket == null) return;
+    print('[Socket] Saliendo de sala: object_$objectId');
+    _socket!.emit('leaveObject', objectId);
+  }
+
+  void joinHunters() {
+    if (_socket == null || !_socket!.connected) return;
+    print('[Socket] Uniéndose a sala: hunters');
+    _socket!.emit('joinHunters');
+  }
+
   void updateMyLocation(double lat, double lng) {
+    if (_socket == null || !_socket!.connected) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    _socket?.emit('updateLocation', {'lat': lat, 'lng': lng, 'firebaseUid': uid});
+    _socket!.emit('updateLocation', {'lat': lat, 'lng': lng, 'firebaseUid': uid});
   }
 
   // ── Escuchar eventos ─────────────────────────────────────────────────────
@@ -107,8 +148,34 @@ class SocketService {
     _socket?.off(event);
   }
 
-  /// Escuchar un evento una sola vez
   void once(String event, Function(dynamic) handler) {
     _socket?.once(event, handler);
+  }
+
+  /// Método de respaldo para cuando el dominio falla
+  void _reconnectWithIP(String? token) {
+    _socket?.disconnect();
+    _socket?.dispose();
+    
+    print('[Socket] 🆘 Reintentando conexión con IP de respaldo: ${ApiConfig.fallbackWsUrl}');
+
+    _socket = io.io(
+      ApiConfig.fallbackWsUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket'])
+          .setExtraHeaders({'Authorization': 'Bearer ${token ?? ''}'})
+          .enableAutoConnect()
+          .setQuery({'forceNew': 'true'}) // Forzamos una instancia limpia
+          .build(),
+    );
+    
+    _socket!.onConnect((_) {
+      _isConnected = true;
+      print('[Socket] ✅ Conectado vía IP Directa (Respaldo)');
+    });
+
+    _socket!.onConnectError((err) => print('[Socket] ❌ Fallo en IP de respaldo: $err'));
+    
+    _socket!.connect();
   }
 }

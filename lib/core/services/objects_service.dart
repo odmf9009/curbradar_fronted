@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'api_service.dart';
 import '../config/api_config.dart';
@@ -7,6 +8,16 @@ import '../models/curb_object.dart';
 /// Reemplaza las llamadas directas a Firestore por llamadas al backend REST.
 class ObjectsService {
   final ApiService _api = ApiService();
+
+  // Canal de comunicación para avisar de cambios realizados localmente
+  static final StreamController<void> _onObjectActionController =
+      StreamController<void>.broadcast();
+  
+  /// Stream que emite cuando se crea o actualiza un objeto desde esta instancia de la app
+  static Stream<void> get onObjectAction => _onObjectActionController.stream;
+
+  // Mantenemos este por compatibilidad, pero redirigimos al nuevo
+  static Stream<void> get onObjectCreated => onObjectAction;
 
   /// Obtiene objetos activos cercanos a [lat, lng] dentro de [radiusMeters].
   Future<List<CurbObject>> getNearbyObjects({
@@ -54,7 +65,12 @@ class ObjectsService {
   Future<CurbObject> createObject(Map<String, dynamic> objectData) async {
     try {
       final response = await _api.post(ApiConfig.objects, data: objectData);
-      return CurbObject.fromJson(response.data['object']);
+      final newObj = CurbObject.fromJson(response.data['object']);
+      
+      // Notificar que se ha realizado una acción exitosa
+      _onObjectActionController.add(null);
+      
+      return newObj;
     } on DioException catch (e) {
       throw Exception(ApiService.extractErrorMessage(e));
     }
@@ -67,6 +83,9 @@ class ObjectsService {
         '${ApiConfig.objects}/$objectId/status',
         data: {'status': status},
       );
+      
+      // Notificar cambio local
+      _onObjectActionController.add(null);
     } on DioException catch (e) {
       throw Exception(ApiService.extractErrorMessage(e));
     }
@@ -77,6 +96,10 @@ class ObjectsService {
   Future<bool> confirmStillThere(String objectId) async {
     try {
       final response = await _api.post('${ApiConfig.objects}/$objectId/confirm');
+      
+      // Notificar cambio local (para actualizar contador de confirmaciones en el mapa si aplica)
+      _onObjectActionController.add(null);
+      
       return response.data['firstTime'] == true;
     } on DioException catch (e) {
       if (e.response?.statusCode == 409) return false; // Ya confirmó
@@ -91,8 +114,38 @@ class ObjectsService {
         '${ApiConfig.objects}/$objectId/eta',
         data: {'eta': eta},
       );
+      // El ETA no suele requerir un refresco total del mapa, 
+      // pero el socket ya se encarga de avisar a otros.
     } on DioException catch (e) {
       throw Exception(ApiService.extractErrorMessage(e));
+    }
+  }
+
+  /// Actualiza la foto de un objeto (añade una nueva a la lista).
+  Future<bool> updateImage(String objectId, String imageUrl) async {
+    try {
+      // Ruta unificada: PATCH /api/objects/:id/image
+      final String path = 'objects/$objectId/image';
+      
+      print('[ObjectsService] 📸 Enviando PATCH a: ${ApiConfig.baseUrl}$path');
+
+      final response = await _api.patch(
+        path,
+        data: {'imageUrl': imageUrl},
+      );
+      
+      print('[ObjectsService] ✅ Imagen actualizada con éxito');
+
+      // Notificar cambio local para refrescar el mapa
+      _onObjectActionController.add(null);
+      
+      return response.data['firstTime'] == true;
+    } on DioException catch (e) {
+      print('[ObjectsService] ❌ Error actualizando imagen: ${e.response?.statusCode}');
+      throw Exception(ApiService.extractErrorMessage(e));
+    } catch (e) {
+      print('[ObjectsService] ❌ Error genérico: $e');
+      rethrow;
     }
   }
 
@@ -107,6 +160,8 @@ class ObjectsService {
         '${ApiConfig.objects}/$objectId/report',
         data: {'reason': reason, 'description': description ?? ''},
       );
+      // Notificar cambio local (podría desaparecer el objeto si es auto-moderado)
+      _onObjectActionController.add(null);
     } on DioException catch (e) {
       throw Exception(ApiService.extractErrorMessage(e));
     }

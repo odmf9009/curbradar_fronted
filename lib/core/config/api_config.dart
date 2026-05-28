@@ -9,37 +9,33 @@ class ApiConfig {
   static const String _environment =
       String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
 
-  // ── URLs del backend ───────────────────────────────────────────────────────
-  // Producción: Nginx en el VPS con curbradar.tech
-  static const String _prodBaseUrl = 'https://api.curbradar.tech/api';
+  // ── CONFIGURACIÓN DE RED ──────────────────────────────────────────────────
+  static const String _domain = 'api.curbradar.tech';
+  static const String fallbackIP = '2.24.77.82'; // IP del VPS Hostinger
 
-  // Desarrollo: IP del VPS directa o localhost
-  // Mientras configuras Nginx: http://<IP_DEL_VPS>:3000/api
-  static const String _devBaseUrl = 'https://api.curbradar.tech/api';
+  // URLs principales (Dominio) - IMPORTANTE: Terminar en / para que Dio concatene bien
+  static const String _baseUrl = 'https://$_domain/api/';
+  static const String _wsUrl   = 'https://$_domain'; 
 
-  static String get baseUrl =>
-      _environment == 'production' ? _prodBaseUrl : _devBaseUrl;
+  // URLs de respaldo (IP directa)
+  static const String fallbackBaseUrl = 'http://$fallbackIP:3000/api/';
+  static const String fallbackWsUrl   = 'http://$fallbackIP:3000';
 
-  // ── WebSocket (Socket.io) ─────────────────────────────────────────────────
-  // Producción:  wss://api.curbradar.tech  (SSL via Nginx)
-  // Desarrollo:  ws://localhost:3000
-  static String get wsUrl =>
-      _environment == 'production'
-          ? 'wss://api.curbradar.tech'
-          : 'wss://api.curbradar.tech';
+  static String get baseUrl => _baseUrl;
+  static String get wsUrl   => _wsUrl;
 
-  // ── Timeouts ──────────────────────────────────────────────────────────────
-  static const Duration connectTimeout = Duration(seconds: 10);
+  // ── Timeouts aumentados para evitar errores de red lenta ──────────────────
+  static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
 
-  // ── Endpoints ─────────────────────────────────────────────────────────────
-  static const String authVerify = '/auth/verify';
-  static const String authLogout = '/auth/logout';
-  static const String objects    = '/objects';
-  static const String users      = '/users';
-  static const String chat       = '/chat';
-  static const String alerts     = '/alerts';
-  static const String requests   = '/requests';
-  static const String admin      = '/admin';
-  static const String upload     = '/upload';
+  // ── Endpoints (SIN barra inicial para que se unan correctamente a /api/) ──
+  static const String authVerify = 'auth/verify';
+  static const String authLogout = 'auth/logout';
+  static const String objects    = 'objects';
+  static const String users      = 'users';
+  static const String chat       = 'chat';
+  static const String alerts     = 'alerts';
+  static const String requests   = 'requests';
+  static const String admin      = 'admin';
+  static const String upload     = 'upload';
 }

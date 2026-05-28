@@ -10,6 +10,10 @@ import '../config/api_config.dart';
 import '../models/curb_object.dart';
 
 class ProximityService {
+  static final ProximityService _instance = ProximityService._internal();
+  factory ProximityService() => _instance;
+  ProximityService._internal();
+
   final LocationService _locationService = LocationService();
   final ObjectsService _objectsService = ObjectsService();
   final NotificationService _notificationService = NotificationService();
@@ -26,9 +30,13 @@ class ProximityService {
   static const double proximityThreshold = 500.0;
 
   Position? _lastKnownPosition;
+  bool _isMonitoring = false;
 
   /// Starts monitoring proximity to objects
   void startMonitoring() {
+    if (_isMonitoring) return;
+    _isMonitoring = true;
+
     // 1. Load nearby objects initially via REST + poll every 30s
     _pollObjects();
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -43,7 +51,16 @@ class ProximityService {
   }
 
   Future<void> _pollObjects() async {
+    // Only poll if user is logged in
+    if (FirebaseAuth.instance.currentUser == null) return;
+    
+    // If we don't have position yet, try to get it once
+    if (_lastKnownPosition == null) {
+      _lastKnownPosition = await _locationService.getCurrentLocation();
+    }
+    
     if (_lastKnownPosition == null) return;
+
     try {
       final objects = await _objectsService.getNearbyObjects(
         lat: _lastKnownPosition!.latitude,
@@ -60,6 +77,7 @@ class ProximityService {
   void stopMonitoring() {
     _positionSubscription?.cancel();
     _pollingTimer?.cancel();
+    _isMonitoring = false;
   }
 
   Future<void> _checkProximity(Position userPosition) async {
@@ -69,6 +87,7 @@ class ProximityService {
     if (!nearbyEnabled) return;
 
     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
 
     for (var object in _availableObjects) {
       // Don't notify the owner of the object
@@ -92,7 +111,7 @@ class ProximityService {
     }
   }
 
-  void _sendAlert(CurbObject object, double distance) {
+  Future<void> _sendAlert(CurbObject object, double distance) async {
     String distText =
         distance < 100 ? 'a pocos pasos' : 'a solo ${distance.toInt()} metros';
 
@@ -106,19 +125,21 @@ class ProximityService {
     // 2. Save alert to backend
     final String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
-      _api.post(
-        ApiConfig.alerts,
-        data: {
-          'objectId': object.id,
-          'objectTitle': object.title,
-          'objectImageUrl':
-              object.imageUrls.isNotEmpty ? object.imageUrls[0] : '',
-          'address': object.address,
-          'distance': distance,
-        },
-      ).catchError((e) {
+      try {
+        await _api.post(
+          ApiConfig.alerts,
+          data: {
+            'objectId': object.id,
+            'objectTitle': object.title,
+            'objectImageUrl':
+                object.imageUrls.isNotEmpty ? object.imageUrls[0] : '',
+            'address': object.address,
+            'distance': distance,
+          },
+        );
+      } catch (e) {
         print('[Proximity] Error saving alert: $e');
-      });
+      }
     }
   }
 }

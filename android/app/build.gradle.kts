@@ -2,9 +2,8 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin handles the Kotlin integration.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -29,10 +28,13 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keyProps["keyAlias"] as String
-            keyPassword = keyProps["keyPassword"] as String
-            storeFile = file(keyProps["storeFile"] as String)
-            storePassword = keyProps["storePassword"] as String
+            keyAlias = keyProps["keyAlias"]?.toString() ?: ""
+            keyPassword = keyProps["keyPassword"]?.toString() ?: ""
+            val storeFileProp = keyProps["storeFile"]?.toString()
+            if (storeFileProp != null) {
+                storeFile = file(storeFileProp)
+            }
+            storePassword = keyProps["storePassword"]?.toString() ?: ""
         }
     }
 

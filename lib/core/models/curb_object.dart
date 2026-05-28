@@ -1,3 +1,5 @@
+library;
+
 /// Modelo de objeto en la calle para el Frontend Flutter.
 ///
 /// ⚠️ DIFERENCIAS con el modelo del backup (Firestore):
@@ -65,32 +67,46 @@ class CurbObject {
   });
 
   factory CurbObject.fromJson(Map<String, dynamic> json) {
-    return CurbObject(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-      title: json['title'] ?? 'Sin título',
-      description: json['description'] ?? '',
-      category: json['category'] ?? 'Otros',
-      imageUrls: List<String>.from(json['imageUrls'] ?? []),
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      address: json['address'] ?? 'Ubicación desconocida',
-      locality: json['locality'],
-      status: CurbObjectStatus.values.byName(json['status'] ?? 'available'),
-      postedByUserId: json['postedByUserId'] ?? '',
-      postedByUserName: json['postedByUserName'] ?? 'Usuario',
-      createdAt: _parseDate(json['createdAt']),
-      updatedAt: _parseDate(json['updatedAt']),
-      lastConfirmedAt: _parseDate(json['lastConfirmedAt']),
-      claimedByUserId: json['claimedByUserId'],
-      claimedByUserName: json['claimedByUserName'],
-      claimedAt: json['claimedAt'] != null ? _parseDate(json['claimedAt']) : null,
-      claimedUserEta: json['claimedUserEta'],
-      views: json['views'] ?? 0,
-      confirmations: json['confirmations'] ?? 0,
-      estimatedValue: (json['estimatedValue'] as num?)?.toDouble() ?? 0.0,
-      isChatEnabled: json['isChatEnabled'] ?? true,
-      lastMessageAt: json['lastMessageAt'] != null ? _parseDate(json['lastMessageAt']) : null,
-      lastMessageBy: json['lastMessageBy'],
+    try {
+      return CurbObject(
+        id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+        title: json['title'] ?? 'Sin título',
+        description: json['description'] ?? '',
+        category: json['category'] ?? 'Otros',
+        imageUrls: List<String>.from(json['imageUrls'] ?? []),
+        latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+        longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+        address: json['address'] ?? 'Ubicación desconocida',
+        locality: json['locality'],
+        status: _parseStatus(json['status']),
+        postedByUserId: json['postedByUserId'] ?? '',
+        postedByUserName: json['postedByUserName'] ?? 'Usuario',
+        createdAt: _parseDate(json['createdAt']),
+        updatedAt: _parseDate(json['updatedAt']),
+        lastConfirmedAt: _parseDate(json['lastConfirmedAt']),
+        claimedByUserId: json['claimedByUserId'],
+        claimedByUserName: json['claimedByUserName'],
+        claimedAt: json['claimedAt'] != null ? _parseDate(json['claimedAt']) : null,
+        claimedUserEta: json['claimedUserEta'],
+        views: json['views'] ?? 0,
+        confirmations: json['confirmations'] ?? 0,
+        estimatedValue: (json['estimatedValue'] as num?)?.toDouble() ?? 0.0,
+        isChatEnabled: json['isChatEnabled'] ?? true,
+        lastMessageAt: json['lastMessageAt'] != null ? _parseDate(json['lastMessageAt']) : null,
+        lastMessageBy: json['lastMessageBy'],
+      );
+    } catch (e) {
+      print('[CurbObject] Error parsing JSON: $e');
+      rethrow;
+    }
+  }
+
+  static CurbObjectStatus _parseStatus(dynamic value) {
+    if (value == null) return CurbObjectStatus.available;
+    final String statusStr = value.toString();
+    return CurbObjectStatus.values.firstWhere(
+      (e) => e.name == statusStr,
+      orElse: () => CurbObjectStatus.available,
     );
   }
 

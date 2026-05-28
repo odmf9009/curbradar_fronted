@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dio/dio.dart';
 import 'api_service.dart';
+import 'socket_service.dart';
+import 'proximity_service.dart';
 import '../config/api_config.dart';
 
 /// Servicio de autenticación.
@@ -100,6 +102,11 @@ class AuthService {
     try {
       await _api.post(ApiConfig.authLogout);
     } catch (_) {}
+    
+    // Detener servicios activos
+    SocketService().disconnect();
+    ProximityService().stopMonitoring();
+
     await _auth.signOut();
     await _googleSignIn.signOut();
   }
