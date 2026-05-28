@@ -299,10 +299,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                        '${user?.points ?? 0} / 500 XP',
+                        'Nivel ${user?.level ?? 1}',
+                        style: const TextStyle(
+                            color: Color(0xFFFF8A00),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
+                    Text(
+                        '${(user?.points ?? 0) % 500} / 500 XP',
                         style: const TextStyle(
                             color: Colors.grey, fontSize: 12)),
                   ],

@@ -160,32 +160,38 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     _socket.joinMap();
 
     // New object published
+    // El backend emite { object: {...} } — hay que leer data['object']
     _socket.on('object:new', (data) {
       if (!mounted) return;
       try {
-        final obj = CurbObject.fromJson(Map<String, dynamic>.from(data));
-        setState(() {
-          _allObjects.add(obj);
-        });
+        final rawObj = data['object'];
+        if (rawObj == null) return;
+        final obj = CurbObject.fromJson(Map<String, dynamic>.from(rawObj));
+        setState(() => _allObjects.add(obj));
         _filterAndRefreshMap();
       } catch (e) {
         print('[HomeMap] Error parsing object:new: $e');
       }
     });
 
-    // Object updated (status change, ETA, etc.)
+    // Object updated — el backend manda datos parciales { objectId, status?, ... }
     _socket.on('object:updated', (data) {
       if (!mounted) return;
       try {
-        final updatedObj =
-            CurbObject.fromJson(Map<String, dynamic>.from(data));
-        final idx = _allObjects.indexWhere((o) => o.id == updatedObj.id);
+        final objectId = data['objectId']?.toString() ?? '';
+        if (objectId.isEmpty) return;
 
-        // Auto-hide ETA card if no longer claimed by me
-        if (_showEtaCard && _navigatingTargetId == updatedObj.id) {
-          final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-          if (updatedObj.status != CurbObjectStatus.onMyWay ||
-              updatedObj.claimedByUserId != uid) {
+        final idx = _allObjects.indexWhere((o) => o.id == objectId);
+        if (idx == -1) return;
+
+        final newStatus = data['status']?.toString();
+        final isBecomingAvailable = newStatus == 'available';
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+        // Auto-hide ETA card si el claim cambió
+        if (_showEtaCard && _navigatingTargetId == objectId) {
+          final newClaimer = data['claimedByUserId']?.toString();
+          if (isBecomingAvailable || (newStatus == 'onMyWay' && newClaimer != uid)) {
             setState(() {
               _showEtaCard = false;
               _navigatingTargetId = null;
@@ -194,11 +200,22 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           }
         }
 
-        if (idx != -1) {
-          setState(() => _allObjects[idx] = updatedObj);
-        } else {
-          setState(() => _allObjects.add(updatedObj));
-        }
+        setState(() {
+          _allObjects[idx] = _allObjects[idx].copyWith(
+            status: newStatus,
+            clearClaim: isBecomingAvailable,
+            claimedByUserId: data['claimedByUserId']?.toString(),
+            claimedByUserName: data['claimedByUserName']?.toString(),
+            claimedAt: data['claimedAt'] != null
+                ? DateTime.tryParse(data['claimedAt'].toString())
+                : null,
+            claimedUserEta: data['claimedUserEta']?.toString(),
+            lastConfirmedAt: data['lastConfirmedAt'] != null
+                ? DateTime.tryParse(data['lastConfirmedAt'].toString())
+                : null,
+            confirmations: data['confirmations'] as int?,
+          );
+        });
         _filterAndRefreshMap();
       } catch (e) {
         print('[HomeMap] Error parsing object:updated: $e');

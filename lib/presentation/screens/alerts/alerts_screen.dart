@@ -267,7 +267,10 @@ class _NovedadesTabState extends State<_NovedadesTab>
   Future<void> _loadObjects() async {
     final lat = widget.lat;
     final lng = widget.lng;
-    if (lat == null || lng == null) return;
+    if (lat == null || lng == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
