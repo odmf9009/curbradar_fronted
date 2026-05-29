@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'location_service.dart';
 import 'objects_service.dart';
 import 'notification_service.dart';
+import 'socket_service.dart';
 import 'api_service.dart';
 import '../config/api_config.dart';
 import '../models/curb_object.dart';
@@ -17,55 +18,90 @@ class ProximityService {
   final LocationService _locationService = LocationService();
   final ObjectsService _objectsService = ObjectsService();
   final NotificationService _notificationService = NotificationService();
+  final SocketService _socket = SocketService();
   final ApiService _api = ApiService();
 
   StreamSubscription<Position>? _positionSubscription;
   List<CurbObject> _availableObjects = [];
   Timer? _pollingTimer;
 
-  // Set to keep track of notified objects to avoid spamming (lasts for the session)
   final Set<String> _notifiedObjectIds = {};
 
-  // Distance threshold in meters (e.g., 500 meters)
   static const double proximityThreshold = 500.0;
 
   Position? _lastKnownPosition;
   bool _isMonitoring = false;
 
-  /// Starts monitoring proximity to objects
   void startMonitoring() {
     if (_isMonitoring) return;
     _isMonitoring = true;
 
-    // 1. Load nearby objects initially via REST + poll every 30s
+    // 1. Carga inicial + polling REST cada 5 min (reducido — el socket cubre los nuevos)
     _pollObjects();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _pollingTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _pollObjects();
     });
 
-    // 2. Listen to user location changes
+    // 2. GPS: comprueba proximidad cuando el usuario se mueve
     _positionSubscription = _locationService.locationStream.listen((position) {
       _lastKnownPosition = position;
       _checkProximity(position);
     });
+
+    // 3. Socket: detección INMEDIATA cuando alguien publica un objeto nuevo
+    _socket.on('object:new', (data) {
+      try {
+        final rawObj = data['object'];
+        if (rawObj == null) return;
+        final obj = CurbObject.fromJson(Map<String, dynamic>.from(rawObj));
+
+        // Añadir a la lista local para futuros checks de GPS
+        if (obj.status == CurbObjectStatus.available) {
+          _availableObjects.removeWhere((o) => o.id == obj.id);
+          _availableObjects.add(obj);
+        }
+
+        // Si ya tenemos posición, comprobar inmediatamente sin esperar GPS
+        if (_lastKnownPosition != null) {
+          _checkProximityForObject(obj, _lastKnownPosition!);
+        }
+      } catch (e) {
+        print('[Proximity] Error procesando object:new: $e');
+      }
+    });
+
+    // 4. Socket: eliminar de la lista si el objeto fue recogido o expiró
+    _socket.on('object:deleted', (data) {
+      final objectId = data['objectId']?.toString() ?? '';
+      if (objectId.isNotEmpty) {
+        _availableObjects.removeWhere((o) => o.id == objectId);
+        _notifiedObjectIds.remove(objectId);
+      }
+    });
+
+    // 5. Socket: actualizar estado si cambia a onMyWay (ya no disponible)
+    _socket.on('object:updated', (data) {
+      final objectId = data['objectId']?.toString() ?? '';
+      final newStatus = data['status']?.toString();
+      if (objectId.isNotEmpty && newStatus == 'onMyWay') {
+        _availableObjects.removeWhere((o) => o.id == objectId);
+      }
+    });
   }
 
   Future<void> _pollObjects() async {
-    // Only poll if user is logged in
     if (FirebaseAuth.instance.currentUser == null) return;
-    
-    // If we don't have position yet, try to get it once
+
     if (_lastKnownPosition == null) {
       _lastKnownPosition = await _locationService.getCurrentLocation();
     }
-    
     if (_lastKnownPosition == null) return;
 
     try {
       final objects = await _objectsService.getNearbyObjects(
         lat: _lastKnownPosition!.latitude,
         lng: _lastKnownPosition!.longitude,
-        radiusMeters: 5000, // 5km polling radius
+        radiusMeters: 5000,
       );
       _availableObjects =
           objects.where((o) => o.status == CurbObjectStatus.available).toList();
@@ -77,29 +113,25 @@ class ProximityService {
   void stopMonitoring() {
     _positionSubscription?.cancel();
     _pollingTimer?.cancel();
+    _socket.off('object:new');
+    _socket.off('object:deleted');
+    _socket.off('object:updated');
     _isMonitoring = false;
   }
 
   Future<void> _checkProximity(Position userPosition) async {
     final prefs = await SharedPreferences.getInstance();
-    final bool nearbyEnabled = prefs.getBool('notify_nearby') ?? true;
-
-    if (!nearbyEnabled) return;
+    if (!(prefs.getBool('notify_nearby') ?? true)) return;
 
     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
 
-    for (var object in _availableObjects) {
-      // Don't notify the owner of the object
+    for (final object in List.of(_availableObjects)) {
       if (object.postedByUserId == currentUserId) continue;
-
-      double distance = Geolocator.distanceBetween(
-        userPosition.latitude,
-        userPosition.longitude,
-        object.latitude,
-        object.longitude,
+      final distance = Geolocator.distanceBetween(
+        userPosition.latitude, userPosition.longitude,
+        object.latitude, object.longitude,
       );
-
       if (distance <= proximityThreshold) {
         if (!_notifiedObjectIds.contains(object.id)) {
           _notifiedObjectIds.add(object.id);
@@ -108,6 +140,28 @@ class ProximityService {
       } else {
         _notifiedObjectIds.remove(object.id);
       }
+    }
+  }
+
+  /// Comprueba un objeto concreto contra la posición actual.
+  /// Se llama directamente desde el evento socket object:new para detección inmediata.
+  Future<void> _checkProximityForObject(CurbObject object, Position userPosition) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('notify_nearby') ?? true)) return;
+
+    final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+    if (object.postedByUserId == currentUserId) return;
+    if (_notifiedObjectIds.contains(object.id)) return;
+
+    final distance = Geolocator.distanceBetween(
+      userPosition.latitude, userPosition.longitude,
+      object.latitude, object.longitude,
+    );
+
+    if (distance <= proximityThreshold) {
+      _notifiedObjectIds.add(object.id);
+      _sendAlert(object, distance);
     }
   }
 

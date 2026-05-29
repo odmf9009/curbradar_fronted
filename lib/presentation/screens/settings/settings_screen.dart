@@ -93,19 +93,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
               _buildSettingsItem(
-                Icons.help_outline_rounded,
-                tr('ayuda_soporte'),
-                onTap: () {},
+                Icons.verified_user_outlined,
+                tr('politica_privacidad'),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.privacyPolicy),
               ),
               _buildSettingsItem(
                 Icons.history_rounded,
                 tr('terminos_condiciones'),
-                onTap: () {},
+                onTap: () => Navigator.pushNamed(context, AppRoutes.terms),
+              ),
+              _buildSettingsItem(
+                Icons.gavel_rounded,
+                tr('licencias_terceros'),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.licenses),
+              ),
+              _buildSettingsItem(
+                Icons.help_outline_rounded,
+                tr('ayuda_soporte'),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
               ),
               _buildSettingsItem(
                 Icons.info_outline_rounded,
                 tr('acerca_de'),
-                onTap: () {},
+                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
               ),
               const SizedBox(height: 16),
               _buildSettingsItem(

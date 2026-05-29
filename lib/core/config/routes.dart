@@ -20,6 +20,11 @@ import '../../presentation/screens/settings/notification_settings_screen.dart';
 import '../../presentation/screens/settings/search_radius_screen.dart';
 import '../../presentation/screens/settings/privacy_settings_screen.dart';
 import '../../presentation/screens/settings/language_settings_screen.dart';
+import '../../presentation/screens/settings/about_screen.dart';
+import '../../presentation/screens/settings/help_support_screen.dart';
+import '../../presentation/screens/settings/privacy_policy_screen.dart';
+import '../../presentation/screens/settings/terms_screen.dart';
+import '../../presentation/screens/settings/third_party_licenses_screen.dart';
 import '../models/filter_model.dart';
 import '../models/curb_object.dart';
 
@@ -44,6 +49,11 @@ class AppRoutes {
   static const String privacySettings = '/privacy-settings';
   static const String languageSettings = '/language-settings';
   static const String publicProfile = '/public_profile';
+  static const String about = '/about';
+  static const String helpSupport = '/help-support';
+  static const String privacyPolicy = '/privacy-policy';
+  static const String terms = '/terms';
+  static const String licenses = '/licenses';
 
   static Map<String, WidgetBuilder> get routes => {
     splash: (context) => const SplashScreen(),
@@ -73,5 +83,10 @@ class AppRoutes {
     },
     chat: (context) => const ChatScreen(),
     publicProfile: (context) => const PublicProfileScreen(),
+    about: (context) => const AboutScreen(),
+    helpSupport: (context) => const HelpSupportScreen(),
+    privacyPolicy: (context) => const PrivacyPolicyScreen(),
+    terms: (context) => const TermsScreen(),
+    licenses: (context) => const ThirdPartyLicensesScreen(),
   };
 }

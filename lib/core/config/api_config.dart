@@ -38,4 +38,5 @@ class ApiConfig {
   static const String requests   = 'requests';
   static const String admin      = 'admin';
   static const String upload     = 'upload';
+  static const String stats      = 'stats';
 }
