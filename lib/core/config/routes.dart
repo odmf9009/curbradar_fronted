@@ -25,6 +25,11 @@ import '../../presentation/screens/settings/help_support_screen.dart';
 import '../../presentation/screens/settings/privacy_policy_screen.dart';
 import '../../presentation/screens/settings/terms_screen.dart';
 import '../../presentation/screens/settings/third_party_licenses_screen.dart';
+import '../../presentation/screens/profile/achievements_screen.dart';
+import '../../presentation/screens/profile/activity_history_screen.dart';
+import '../../presentation/screens/profile/referral_screen.dart';
+import '../../presentation/screens/profile/rewards_screen.dart';
+import '../../presentation/screens/stats/community_stats_screen.dart';
 import '../models/filter_model.dart';
 import '../models/curb_object.dart';
 
@@ -36,6 +41,11 @@ class AppRoutes {
   static const String publish = '/publish';
   static const String premium = '/premium';
   static const String settings = '/settings';
+  static const String achievements   = '/achievements';
+  static const String activityHistory= '/activity-history';
+  static const String referral       = '/referral';
+  static const String rewards        = '/rewards';
+  static const String communityStats = '/community-stats';
   static const String objectDetail = '/object-detail';
   static const String myPosts = '/my-posts';
   static const String adminPanel = '/admin-panel';
@@ -88,5 +98,10 @@ class AppRoutes {
     privacyPolicy: (context) => const PrivacyPolicyScreen(),
     terms: (context) => const TermsScreen(),
     licenses: (context) => const ThirdPartyLicensesScreen(),
+    achievements:    (context) => const AchievementsScreen(),
+    activityHistory: (context) => const ActivityHistoryScreen(),
+    referral:        (context) => const ReferralScreen(),
+    rewards:         (context) => const RewardsScreen(),
+    communityStats:  (context) => const CommunityStatsScreen(),
   };
 }

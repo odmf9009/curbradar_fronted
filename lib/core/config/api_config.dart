@@ -39,4 +39,18 @@ class ApiConfig {
   static const String admin      = 'admin';
   static const String upload     = 'upload';
   static const String stats      = 'stats';
+  // Gamification endpoints
+  static const String achievements         = 'achievements';
+  static const String achievementsCheck    = 'achievements/check';
+  static const String activity             = 'activity';
+  static const String referrals            = 'referrals';
+  static const String referralsCode        = 'referrals/code';
+  static const String referralsValidate    = 'referrals/validate';
+  static const String referralsProcess     = 'referrals/process';
+  static const String referralsHistory     = 'referrals/history';
+  static const String referralsTrackFirstPost  = 'referrals/track-first-post';
+  static const String referralsTrackCollection = 'referrals/track-collection';
+  static const String rewards              = 'rewards';
+  static const String rewardsXpHistory     = 'rewards/xp-history';
+  static const String rewardsRedeem        = 'rewards/redeem';
 }

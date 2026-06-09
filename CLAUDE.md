@@ -109,20 +109,26 @@ curbradar_frontend/
             ├── publish/
             │   └── publish_object_screen.dart ← Formulario + cámara + UploadService
             ├── profile/
-            │   ├── profile_screen.dart        ← Perfil propio + stats + editar alias
-            │   ├── public_profile_screen.dart ← Perfil público de otro usuario
-            │   ├── my_posts_screen.dart       ← Mis publicaciones
-            │   └── admin_panel_screen.dart    ← Panel admin (solo role=admin)
+            │   ├── profile_screen.dart            ← Perfil propio + stats + editar alias
+            │   ├── public_profile_screen.dart      ← Perfil público de otro usuario
+            │   ├── my_posts_screen.dart            ← Mis publicaciones
+            │   ├── admin_panel_screen.dart         ← Panel admin (solo role=admin)
+            │   ├── achievements_screen.dart        ← ⭐ [v1.1] 50 logros con progreso
+            │   ├── activity_history_screen.dart    ← ⭐ [v1.1] Historial de actividad
+            │   ├── referral_screen.dart            ← ⭐ [v1.1] Sistema de referidos
+            │   └── rewards_screen.dart             ← ⭐ [v1.1] Catálogo + canje de recompensas
+            ├── stats/
+            │   └── community_stats_screen.dart    ← ⭐ [v1.1] Estadísticas de la comunidad
             ├── ranking/
-            │   └── ranking_screen.dart        ← Leaderboard por puntos
+            │   └── ranking_screen.dart            ← Leaderboard por puntos
             ├── saved/
-            │   └── saved_objects_screen.dart  ← Objetos guardados como favoritos
+            │   └── saved_objects_screen.dart      ← Objetos guardados como favoritos
             ├── alerts/
-            │   └── alerts_screen.dart         ← Historial de alertas de proximidad
+            │   └── alerts_screen.dart             ← Historial de alertas de proximidad
             ├── onboarding/
-            │   └── onboarding_screen.dart     ← Tutorial primera vez
+            │   └── onboarding_screen.dart         ← Tutorial primera vez
             ├── premium/
-            │   └── premium_screen.dart        ← Pantalla suscripción (futuro)
+            │   └── premium_screen.dart            ← Pantalla suscripción (futuro)
             └── settings/
                 ├── settings_screen.dart
                 ├── notification_settings_screen.dart
@@ -348,6 +354,74 @@ LanguageService().init()            // Llamado en main.dart
 
 ---
 
+### 5.12 AchievementService (`achievement_service.dart`) ⭐ [v1.1]
+
+```dart
+final _achievements = AchievementService();
+
+// Obtiene los 50 logros con progreso del usuario desde el backend
+List<AchievementModel> achievements = await _achievements.getUserAchievements();
+
+// Recalcula y persiste el progreso (llamar después de acciones relevantes)
+await _achievements.checkAchievements();
+```
+
+---
+
+### 5.13 ActivityService (`activity_service.dart`) ⭐ [v1.1]
+
+```dart
+final _activity = ActivityService();
+
+List<ActivityModel> history = await _activity.getMyActivities(limit: 50);
+
+// Registrar una actividad manualmente
+await _activity.logActivity(title: 'Publicaste un objeto', type: 'publish', points: 50);
+```
+
+**Tipos válidos:** `publish`, `collect`, `confirm`, `onMyWay`, `photoUpdate`, `achievement`, `levelUp`, `rankingEntry`, `communityAppreciation`, `objectCollectedByOther`, `pointsRedeemed`
+
+---
+
+### 5.14 ReferralService (`referral_service.dart`) ⭐ [v1.1]
+
+```dart
+final _referral = ReferralService();
+
+String code = await _referral.getMyCode();               // Genera si no existe
+bool valid  = await _referral.validateCode('CURB-...');  // Verificar antes de registro
+await _referral.processReferral('CURB-...');             // Vincular referidor
+await _referral.trackFirstPost();                        // +150 XP al referidor
+await _referral.trackCollection();                       // +200 XP al referidor
+List<Map> history = await _referral.getReferralHistory();
+```
+
+---
+
+### 5.15 RewardsService (`rewards_service.dart`) ⭐ [v1.1]
+
+```dart
+final _rewards = RewardsService();
+
+List<RewardItem> catalog = await _rewards.getAvailableRewards();
+List<XPTransaction> history = await _rewards.getXPHistory();
+int newPoints = await _rewards.redeemReward('premium_access');
+```
+
+---
+
+### 5.16 StatsService (`stats_service.dart`) ⭐ [v1.1]
+
+```dart
+final _stats = StatsService();
+
+CommunityStats stats = await _stats.getCommunityStats();
+// stats.activeObjects, stats.totalCollected, stats.activeUsers30d, stats.objectsToday
+// stats.categoryDistribution, stats.hottestAreas, stats.environmentalImpact
+```
+
+---
+
 ## 6. Modelos — Campos y Comportamiento
 
 ### 6.1 CurbObject (`curb_object.dart`)
@@ -463,6 +537,21 @@ AlertModel.fromJson(json)
 ### 6.5 Otros modelos (`filter_model.dart`, `comment_model.dart`, `report_model.dart`, `request_model.dart`)
 Disponibles en `lib/core/models/`. Usar `fromJson` / `toJson` estándar, sin `Timestamp`.
 
+### 6.6 AchievementModel (`achievement_model.dart`) ⭐ [v1.1]
+50 logros en 5 categorías: `posting`, `finding`, `community`, `social`, `special`.
+`baseAchievements` — lista completa con `IconData`, `targetValue`, `category`.
+`AchievementModel.fromJson(json)` — merges datos del servidor con definición base local.
+
+### 6.7 ActivityModel (`activity_model.dart`) ⭐ [v1.1]
+11 tipos (`ActivityType` enum). Cada instancia tiene `icon` y `color` según el tipo.
+`ActivityModel.fromJson(json)` — fecha ISO8601.
+
+### 6.8 RewardModel (`reward_model.dart`) ⭐ [v1.1]
+Dos clases: `RewardItem` (catálogo) y `XPTransaction` (historial).
+
+### 6.9 CommunityStatsModel (`community_stats_model.dart`) ⭐ [v1.1]
+Tres clases: `CommunityStats`, `AreaActivity`, `EnvironmentalImpact`. Todas con `fromJson`.
+
 ---
 
 ## 7. Configuración y Entornos (`api_config.dart`)
@@ -523,6 +612,11 @@ flutter build appbundle --dart-define=ENVIRONMENT=production
 | `AppRoutes.privacySettings` | `/privacy-settings` | PrivacySettingsScreen | — |
 | `AppRoutes.languageSettings` | `/language-settings` | LanguageSettingsScreen | — |
 | `AppRoutes.premium` | `/premium` | PremiumScreen | — |
+| `AppRoutes.achievements` | `/achievements` | AchievementsScreen | — |
+| `AppRoutes.activityHistory` | `/activity-history` | ActivityHistoryScreen | — |
+| `AppRoutes.referral` | `/referral` | ReferralScreen | — |
+| `AppRoutes.rewards` | `/rewards` | RewardsScreen | — |
+| `AppRoutes.communityStats` | `/community-stats` | CommunityStatsScreen | — |
 
 **Cómo pasar argumentos y recibirlos:**
 ```dart
@@ -813,11 +907,51 @@ Obtenerlos desde: [Firebase Console](https://console.firebase.google.com/project
 
 ---
 
-*Actualizado: Mayo 2026 — curbradar_frontend v1.0.0*
+*Actualizado: Junio 2026 — curbradar_frontend v1.1.0*
 
 ---
 
 ## 16. Changelog
+
+### 2026-06-09 — Gamificación completa (v1.1.0)
+
+Portado de `Curb_radar_v2_backup_v4` a arquitectura REST sin Firestore.
+
+**Nuevos modelos (lib/core/models/):**
+- `achievement_model.dart` — 50 logros con `AchievementModel.fromJson()`, sin `cloud_firestore`
+- `activity_model.dart` — 11 `ActivityType`, con `icon` y `color` por tipo
+- `reward_model.dart` — `RewardItem` + `XPTransaction` con `fromJson` ISO8601
+- `community_stats_model.dart` — `CommunityStats`, `AreaActivity`, `EnvironmentalImpact`
+
+**UserModel ampliado:**
+- Nuevos campos: `chatMessagesCount`, `referralCode`, `referredBy`, `referralCount`, `successfulReferrals`, `referralXpEarned`, `redeemedRewards`
+- Nuevo getter: `levelProgress` — `(points % 500) / 500.0`
+
+**Nuevos servicios (lib/core/services/):**
+- `achievement_service.dart` — REST, singleton
+- `activity_service.dart` — REST, singleton
+- `referral_service.dart` — REST, singleton
+- `rewards_service.dart` — REST, singleton
+- `stats_service.dart` — REST, singleton
+
+**Nuevas pantallas:**
+- `profile/achievements_screen.dart` — Grid 2×N de logros con barra de progreso
+- `profile/activity_history_screen.dart` — Timeline con filtros por categoría
+- `profile/referral_screen.dart` — Código, compartir, historial de referidos
+- `profile/rewards_screen.dart` — Catálogo, canje, historial XP
+- `stats/community_stats_screen.dart` — Métricas, categorías, zonas, impacto ecológico
+
+**api_config.dart:**
+- 14 nuevos endpoints: `achievements`, `achievementsCheck`, `activity`, `referrals*`, `rewards*`
+
+**routes.dart:**
+- 5 nuevas rutas: `/achievements`, `/activity-history`, `/referral`, `/rewards`, `/community-stats`
+
+**profile_screen.dart:**
+- Botón "Ver todos" en logros → `AppRoutes.achievements`
+- 4 nuevas opciones de menú: Historial, Logros, Recompensas, Referidos, Estadísticas Comunidad
+
+---
 
 ### 2026-05-26 — Setup inicial producción + App Store
 

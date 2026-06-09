@@ -364,7 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 18)),
                     TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.pushNamed(context, AppRoutes.achievements),
                         child: const Text('Ver todos',
                             style: TextStyle(color: Color(0xFFFF8A00)))),
                   ],
@@ -405,9 +405,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icons.inventory_2_outlined, tr('objetos_recogidos'), () {
             Navigator.pushNamed(context, AppRoutes.myPosts);
           }, count: pickedUpCount),
-          _buildMenuItem(Icons.history, tr('historial'), () {}),
+          _buildMenuItem(Icons.history, tr('historial'), () {
+            Navigator.pushNamed(context, AppRoutes.activityHistory);
+          }),
+          _buildMenuItem(Icons.emoji_events_outlined, tr('logros'), () {
+            Navigator.pushNamed(context, AppRoutes.achievements);
+          }),
+          _buildMenuItem(Icons.card_giftcard_outlined, tr('recompensas'), () {
+            Navigator.pushNamed(context, AppRoutes.rewards);
+          }),
+          _buildMenuItem(Icons.group_add_outlined, tr('referidos'), () {
+            Navigator.pushNamed(context, AppRoutes.referral);
+          }),
           _buildMenuItem(Icons.bookmark_border, tr('guardados'), () {
             Navigator.pushNamed(context, AppRoutes.saved);
+          }),
+          _buildMenuItem(Icons.bar_chart_outlined, 'Estadísticas Comunidad', () {
+            Navigator.pushNamed(context, AppRoutes.communityStats);
           }),
 
           const SizedBox(height: 40),
