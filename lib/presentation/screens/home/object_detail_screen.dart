@@ -55,6 +55,35 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
   bool _commentsLoaded = false;
 
   String get _currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  bool get _isGuest => FirebaseAuth.instance.currentUser == null;
+
+  void _showLoginRequiredDialog(String reason) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Inicio de sesión necesario', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Necesitas iniciar sesión $reason.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Luego', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, AppRoutes.login);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8A00),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Iniciar sesión', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -595,8 +624,8 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final CurbObject? routeObject =
-        ModalRoute.of(context)?.settings.arguments as CurbObject?;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final CurbObject? routeObject = args is CurbObject ? args : null;
     final liveObject = _liveObject ?? routeObject;
 
     if (liveObject == null) {
@@ -715,11 +744,15 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                       () => _shareObject(liveObject)),
                                   const SizedBox(width: 12),
                                   _buildCircleButton(
-                                    _isFavorite
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    () => _toggleFavorite(liveObject.id),
-                                    color: _isFavorite
+                                    _isGuest ? Icons.favorite_border : (_isFavorite ? Icons.favorite : Icons.favorite_border),
+                                    () {
+                                      if (_isGuest) {
+                                        _showLoginRequiredDialog('para guardar favoritos');
+                                      } else {
+                                        _toggleFavorite(liveObject.id);
+                                      }
+                                    },
+                                    color: _isFavorite && !_isGuest
                                         ? Colors.red
                                         : Colors.black,
                                   ),
@@ -731,9 +764,15 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                           const EdgeInsets.only(left: 12),
                                       child: _buildCircleButton(
                                         Icons.chat_bubble_outline,
-                                        () => Navigator.pushNamed(
-                                            context, AppRoutes.chat,
-                                            arguments: liveObject),
+                                        () {
+                                          if (_isGuest) {
+                                            _showLoginRequiredDialog('para chatear con otros cazadores');
+                                          } else {
+                                            Navigator.pushNamed(
+                                                context, AppRoutes.chat,
+                                                arguments: liveObject);
+                                          }
+                                        },
                                         color: const Color(0xFFFF8A00),
                                       ),
                                     ),
@@ -766,13 +805,18 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                               ),
                             ),
                             IconButton(
-                              onPressed: () =>
-                                  _toggleFavorite(liveObject.id),
+                              onPressed: () {
+                                if (_isGuest) {
+                                  _showLoginRequiredDialog('para guardar favoritos');
+                                } else {
+                                  _toggleFavorite(liveObject.id);
+                                }
+                              },
                               icon: Icon(
-                                _isFavorite
+                                (_isFavorite && !_isGuest)
                                     ? Icons.favorite
                                     : Icons.favorite_border,
-                                color: _isFavorite
+                                color: (_isFavorite && !_isGuest)
                                     ? Colors.red
                                     : Colors.black,
                                 size: 28,
@@ -857,16 +901,19 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                         fontWeight: FontWeight.w500))),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
-                              onPressed: liveObject.status ==
-                                          CurbObjectStatus.onMyWay &&
-                                      liveObject.claimedByUserId !=
-                                          _currentUserId
-                                  ? _showBlockedMessage
-                                  : () {
-                                      _launchNavigation(liveObject.latitude,
-                                          liveObject.longitude);
-                                      Navigator.pop(context, true);
-                                    },
+                              onPressed: _isGuest
+                                  ? () => _showLoginRequiredDialog(
+                                      'para iniciar la navegación hacia el objeto')
+                                  : (liveObject.status ==
+                                              CurbObjectStatus.onMyWay &&
+                                          liveObject.claimedByUserId !=
+                                              _currentUserId
+                                      ? _showBlockedMessage
+                                      : () {
+                                          _launchNavigation(liveObject.latitude,
+                                              liveObject.longitude);
+                                          Navigator.pop(context, true);
+                                        }),
                               icon: const Icon(Icons.directions, size: 18),
                               label: Text(tr('ir')),
                               style: ElevatedButton.styleFrom(
@@ -969,7 +1016,9 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                         ? Colors.grey
                                         : Colors.green,
                                     Colors.white,
-                                    onPressed: (liveObject.status ==
+                                    onPressed: _isGuest
+                                        ? () => _showLoginRequiredDialog('para confirmar que el objeto sigue ahí y ganar puntos')
+                                        : (liveObject.status ==
                                                 CurbObjectStatus.onMyWay &&
                                             liveObject.claimedByUserId !=
                                                 _currentUserId)
@@ -1028,21 +1077,23 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                             _currentUserId
                                     ? liveObject.remainingClaimTimeText
                                     : '',
-                                onPressed: isOwner
-                                    ? null // El autor no puede reclamar su propio objeto
-                                    : (liveObject.status ==
-                                                CurbObjectStatus.onMyWay &&
-                                            liveObject.claimedByUserId !=
-                                                _currentUserId
-                                        ? _showBlockedMessage
+                                onPressed: _isGuest
+                                    ? () => _showLoginRequiredDialog('para marcar que vas en camino y reservar el objeto')
+                                    : (isOwner
+                                        ? null // El autor no puede reclamar su propio objeto
                                         : (liveObject.status ==
-                                                CurbObjectStatus.available
-                                            ? () => _showVoyEnCaminoReminder(
-                                                liveObject.id)
-                                            : () => _updateStatus(
-                                                liveObject.id,
-                                                CurbObjectStatus.available,
-                                                isConfirming: false))),
+                                                    CurbObjectStatus.onMyWay &&
+                                                liveObject.claimedByUserId !=
+                                                    _currentUserId
+                                            ? _showBlockedMessage
+                                            : (liveObject.status ==
+                                                    CurbObjectStatus.available
+                                                ? () => _showVoyEnCaminoReminder(
+                                                    liveObject.id)
+                                                : () => _updateStatus(
+                                                    liveObject.id,
+                                                    CurbObjectStatus.available,
+                                                    isConfirming: false)))),
                               ),
                             ),
                           ],
@@ -1057,7 +1108,9 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                     tr('actualizar_foto'),
                                     Colors.orange,
                                     Colors.white,
-                                    onPressed: (liveObject.status ==
+                                    onPressed: _isGuest
+                                        ? () => _showLoginRequiredDialog('para actualizar la foto del objeto')
+                                        : (liveObject.status ==
                                                 CurbObjectStatus.onMyWay &&
                                             liveObject.claimedByUserId !=
                                                 _currentUserId)
@@ -1099,7 +1152,9 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                                     Colors.red,
                                     borderColor: Colors.red,
                                     onInfoTap: () => _showPickedUpInfo(),
-                                    onPressed: (liveObject.status ==
+                                    onPressed: _isGuest
+                                        ? () => _showLoginRequiredDialog('para avisar que el objeto ya fue recogido')
+                                        : (liveObject.status ==
                                                 CurbObjectStatus.onMyWay &&
                                             liveObject.claimedByUserId !=
                                                 _currentUserId)
@@ -1334,7 +1389,13 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    onPressed: () => _postComment(liveObject.id),
+                    onPressed: () {
+                      if (_isGuest) {
+                        _showLoginRequiredDialog('para publicar comentarios');
+                      } else {
+                        _postComment(liveObject.id);
+                      }
+                    },
                     icon:
                         const Icon(Icons.send, color: Color(0xFFFF8A00)),
                   ),
@@ -1365,7 +1426,13 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
   Widget _buildCircleMenu(String objectId) {
     return PopupMenuButton<String>(
       onSelected: (val) {
-        if (val == 'report') _showReportDialog(objectId);
+        if (val == 'report') {
+          if (_isGuest) {
+            _showLoginRequiredDialog('para reportar contenido inapropiado');
+          } else {
+            _showReportDialog(objectId);
+          }
+        }
       },
       itemBuilder: (context) => [
         const PopupMenuItem(

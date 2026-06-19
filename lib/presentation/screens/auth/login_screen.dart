@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:io';
 import '../../../core/config/routes.dart';
 import '../../../core/services/auth_service.dart';
 
@@ -154,6 +156,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
 
+                if (Platform.isIOS) ...[
+                  SignInWithAppleButton(
+                    onPressed: _isLoading ? () {} : _signInWithApple,
+                    style: SignInWithAppleButtonStyle.black,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 OutlinedButton(
                   onPressed: _isLoading ? null : _signInWithGoogle,
                   style: OutlinedButton.styleFrom(
@@ -180,6 +191,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, AppRoutes.home);
+                    },
+                    child: const Text(
+                      'Explorar como invitado',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
 
                 Center(
                   child: TextButton(
@@ -214,6 +243,26 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Error con Google: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signInWithApple();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error con Apple: $e'),
               backgroundColor: Colors.red),
         );
       }

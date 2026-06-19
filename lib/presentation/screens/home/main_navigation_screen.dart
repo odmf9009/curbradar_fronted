@@ -40,11 +40,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
-    _checkUserAlias();
-    _startRadar();
-    _syncOnlineStatus();
+    final isGuest = FirebaseAuth.instance.currentUser == null;
+    
+    if (!isGuest) {
+      _checkUserAlias();
+      _startRadar();
+      _syncOnlineStatus();
+      _connectSocket();
+    }
     _initConnectivity();
-    _connectSocket();
   }
 
   @override
@@ -57,6 +61,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Future<void> _connectSocket() async {
+    if (FirebaseAuth.instance.currentUser == null) return;
     await _socket.connect();
   }
 
@@ -120,6 +125,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Future<void> _toggleOnlineStatus(bool value) async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      _showLoginRequiredDialog(context, 'para aparecer en el mapa y que otros cazadores te vean');
+      return;
+    }
     setState(() => _isOnline = value);
 
     if (value) {
@@ -375,6 +384,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _onTabTapped(int index) {
+    final isGuest = FirebaseAuth.instance.currentUser == null;
+
+    if (isGuest && index != 0) {
+      _showLoginRequiredDialog(
+        context,
+        index == 1 
+            ? 'para ver tus notificaciones y alertas' 
+            : index == 2 
+                ? 'para ver el ranking y tu progreso' 
+                : 'para gestionar tu perfil y configuraciones'
+      );
+      return;
+    }
+
     setState(() {
       // Si el usuario va al perfil, forzar reload para mostrar XP y logros actualizados
       if (index == 3 && _currentIndex != 3) _profileKey++;
@@ -382,8 +405,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     });
   }
 
+  void _showLoginRequiredDialog(BuildContext context, String reason) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Inicio de sesión necesario', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Necesitas iniciar sesión $reason.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Luego', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, AppRoutes.login);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8A00),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Iniciar sesión', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isGuest = FirebaseAuth.instance.currentUser == null;
     final List<Widget> screens = [
       HomeMapScreen(
         isOnline: _isOnline,
@@ -403,6 +455,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       floatingActionButton: FloatingActionButton(
         heroTag: 'main_fab',
         onPressed: () async {
+          if (isGuest) {
+            _showLoginRequiredDialog(context, 'para publicar nuevos objetos');
+            return;
+          }
           final result = await Navigator.pushNamed(context, AppRoutes.publish);
           // Si regresamos de publicar, forzamos un refresco si estamos en el mapa
           if (_currentIndex == 0) {

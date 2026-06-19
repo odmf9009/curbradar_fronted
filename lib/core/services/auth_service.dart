@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:dio/dio.dart';
+import 'dart:io';
 import 'api_service.dart';
 import 'socket_service.dart';
 import 'proximity_service.dart';
@@ -9,7 +11,7 @@ import '../config/api_config.dart';
 /// Servicio de autenticación.
 ///
 /// Flujo:
-/// 1. Login via Firebase (Google o Email/Password) → obtiene ID Token
+/// 1. Login via Firebase (Google, Apple o Email/Password) → obtiene ID Token
 /// 2. Envía el token al backend (/auth/verify)
 /// 3. El backend crea/retorna el usuario en MongoDB
 /// 4. El ApiService inyecta el token automáticamente en cada request
@@ -27,6 +29,35 @@ class AuthService {
 
   /// UID del usuario actual en Firebase
   String? get currentUserUid => _auth.currentUser?.uid;
+
+  /// Indica si el usuario actual es un invitado (no logueado)
+  bool get isGuest => _auth.currentUser == null;
+
+  /// Login con Apple → verifica en el backend
+  Future<Map<String, dynamic>?> signInWithApple({String? fcmToken}) async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthProvider oAuthProvider = OAuthProvider('apple.com');
+      final AuthCredential credential = oAuthProvider.credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      await _auth.signInWithCredential(credential);
+
+      // Verificar en el backend y obtener el perfil MongoDB
+      return await _verifyWithBackend(fcmToken: fcmToken);
+    } catch (e) {
+      print('[Auth] Error Apple Sign In: $e');
+      rethrow;
+    }
+  }
 
   /// Login con Google → verifica en el backend
   Future<Map<String, dynamic>?> signInWithGoogle({String? fcmToken}) async {

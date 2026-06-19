@@ -140,6 +140,14 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     try {
       if (mounted) setState(() => _isInitialLoading = true);
 
+      final bool isGuest = FirebaseAuth.instance.currentUser == null;
+      double radiusMeters = _currentFilters.distance * 1609.34;
+      
+      // Limit guest radius to 1 mile
+      if (isGuest && _currentFilters.distance > 1.0) {
+        radiusMeters = 1.0 * 1609.34;
+      }
+
       // Si el filtro es 'available', no enviamos status al servidor para que nos devuelva 
       // tanto 'available' como 'onMyWay', y luego filtramos localmente.
       final String? statusFilter = (_currentFilters.status == 'available' || _currentFilters.status == 'Todos') 
@@ -149,7 +157,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       final objects = await _objectsService.getNearbyObjects(
         lat: _currentPosition!.latitude,
         lng: _currentPosition!.longitude,
-        radiusMeters: _currentFilters.distance * 1609.34,
+        radiusMeters: radiusMeters,
         category: _currentFilters.category != 'Todos'
             ? _currentFilters.category
             : null,
@@ -335,7 +343,11 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       return;
     }
 
-    final double maxDistanceInMeters = _currentFilters.distance * 1609.34;
+    final bool isGuest = FirebaseAuth.instance.currentUser == null;
+    final double maxDistanceInMeters = (isGuest && _currentFilters.distance > 1.0) 
+        ? 1.0 * 1609.34 
+        : _currentFilters.distance * 1609.34;
+
     const double globalLimitInMeters = 50 * 1609.34;
     final String query = _currentFilters.searchQuery.toLowerCase();
     final now = DateTime.now();

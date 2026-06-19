@@ -34,7 +34,10 @@ class _SplashScreenState extends State<SplashScreen> {
       if (user != null) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
       } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        // Permitir entrada como invitado directamente o ir a Login
+        // Para cumplir con Apple, el usuario debe poder entrar sin login forzado inmediatamente.
+        // Iremos al Home, y el Home manejará el estado de invitado.
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       }
     }
   }

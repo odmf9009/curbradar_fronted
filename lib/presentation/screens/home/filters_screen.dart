@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/models/filter_model.dart';
+import '../../../core/config/routes.dart';
 
 class FiltersScreen extends StatefulWidget {
   final FilterModel initialFilters;
@@ -17,11 +19,13 @@ class _FiltersScreenState extends State<FiltersScreen> {
   late String _selectedTime;
   final TextEditingController _searchController = TextEditingController();
 
+  bool get _isGuest => FirebaseAuth.instance.currentUser == null;
+
   @override
   void initState() {
     super.initState();
     final filters = widget.initialFilters;
-    _distance = filters.distance;
+    _distance = _isGuest ? 1.0 : filters.distance;
     _selectedCategory = filters.category;
     _selectedStatus = filters.status;
     _selectedTime = filters.timeRange;
@@ -122,7 +126,14 @@ class _FiltersScreenState extends State<FiltersScreen> {
               divisions: 49,
               activeColor: const Color(0xFFFF8A00),
               inactiveColor: Colors.grey[200],
-              onChanged: (value) => setState(() => _distance = value),
+              onChanged: (value) {
+                if (_isGuest && value > 1.0) {
+                  _showLoginRequiredDialog(
+                      'para ver objetos a más de 1 milla de distancia');
+                  return;
+                }
+                setState(() => _distance = value);
+              },
             ),
 
             const SizedBox(height: 24),
@@ -260,6 +271,37 @@ class _FiltersScreenState extends State<FiltersScreen> {
             fontSize: 13,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showLoginRequiredDialog(String reason) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Inicio de sesión necesario',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Necesitas iniciar sesión $reason.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Luego', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, AppRoutes.login);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8A00),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Iniciar sesión',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
